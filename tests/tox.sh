@@ -6,11 +6,31 @@
 
 # setup
 #################################################################################
+sudo apt-get install -y --force-yes docker.io
+sudo apt-get install -y --force-yes xfsprogs
 git clone -b $CEPH_ANSIBLE_BRANCH --single-branch https://github.com/ceph/ceph-ansible.git ceph-ansible
 pip install -r $TOXINIDIR/ceph-ansible/tests/requirements.txt
 
+# pull requests tests should never have these directories here, but branches
+# do, so for the build scripts to work correctly, these neeed to be removed
+# XXX It requires sudo because these will appear with `root` ownership
+sudo rm -rf "$WORKSPACE"/{daemon,demo,base}
+
+sudo "$WORKSPACE"/travis-builds/purge_cluster.sh
+# XXX purge_cluster only stops containers, it doesn't really remove them so try to
+# remove them for real
+containers_to_remove=$(sudo docker ps -a -q)
+
+if [ "${containers_to_remove}" ]; then
+    sudo docker rm -f $@ ${containers_to_remove} || echo failed to remove containers
+fi
+
+sudo "$WORKSPACE"/travis-builds/build_imgs.sh
+
 # test
 #################################################################################
+
+# TODO: get the output image from build_imgs.sh to pass onto ceph-ansible
 
 # vars
 #################################################################################
